@@ -64,6 +64,11 @@ st.markdown("""
         font-weight: 900;
         margin: 5px 0;
     }
+    .mid-temp {
+        font-size: 36px;
+        font-weight: 800;
+        margin: 5px 0;
+    }
     .card-sub {
         font-size: 13px;
         color: #adb5bd;
@@ -79,6 +84,13 @@ st.markdown("""
     .prediction-box .big-temp {
         color: white;
         font-size: 65px;
+    }
+    .info-box {
+        background: #EDF2FB;
+        border-radius: 15px;
+        padding: 20px;
+        text-align: center;
+        border: 1px solid #D6E0F5;
     }
     hr {
         margin-top: 30px;
@@ -106,15 +118,21 @@ def load_and_process_data():
     
     yearly_df = df.groupby("연도").agg(
         관측일수=("평균기온", "count"),
-        연평균기온=("평균기온", "mean")
+        연평균기온=("평균기온", "mean"),
+        연평균최고기온=("최고기온", "mean"),
+        연평균최저기온=("최저기온", "mean")
     ).reset_index()
     
+    # 일교차 계산
+    yearly_df["일교차"] = yearly_df["연평균최고기온"] - yearly_df["연평균최저기온"]
+    
+    # 기준 기간(2025년까지) 및 관측일 300일 미만 제외
     filtered_df = yearly_df[(yearly_df["연도"] <= 2025) & (yearly_df["관측일수"] >= 300)].copy()
     return filtered_df
 
 data = load_and_process_data()
 
-# 5. 전체 기간 회귀 분석
+# 5. 전체 기간 회귀 분석 (평균기온 기준)
 X_all = data["연도"].values
 y_all = data["연평균기온"].values
 
@@ -140,6 +158,15 @@ num_years_recent = len(X_recent)
 rate_per_century_recent = slope_recent * 100
 
 difference = rate_per_century_recent - rate_per_century_all
+
+# 7. 최고/최저기온/일교차 회귀 분석 (전체 기간 기준)
+slope_high, intercept_high = np.polyfit(X_all, data["연평균최고기온"].values, 1)
+slope_low, intercept_low = np.polyfit(X_all, data["연평균최저기온"].values, 1)
+slope_range, intercept_range = np.polyfit(X_all, data["일교차"].values, 1)
+
+rate_high_century = slope_high * 100
+rate_low_century = slope_low * 100
+rate_range_century = slope_range * 100
 
 # =========================================================
 # 섹션 1: 100년당 기온 상승 폭 비교
@@ -177,13 +204,93 @@ else:
 st.markdown("<hr>", unsafe_allow_html=True)
 
 # =========================================================
-# 섹션 2: 그래프 분석 (+ 무지개 테마 버튼)
+# 섹션 2: 최고/최저기온 & 일교차 분석 (신규 추가)
+# =========================================================
+st.markdown('<p class="section-title">🌡️ 최고·최저기온 & 일교차 추세 분석</p>', unsafe_allow_html=True)
+st.caption(f"전체 기간({start_year_all}~{end_year_all}년) 기준, 최고기온·최저기온·일교차 각각의 100년당 변화 폭입니다.")
+
+col_high, col_low, col_range = st.columns(3)
+
+with col_high:
+    st.markdown(f"""
+    <div class="metric-card">
+        <p class="card-label">🔴 최고기온</p>
+        <p class="mid-temp" style="color:#E63946;">{rate_high_century:+.2f}°C</p>
+        <p class="card-sub">/ 100년 기준</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+with col_low:
+    st.markdown(f"""
+    <div class="metric-card">
+        <p class="card-label">🔵 최저기온</p>
+        <p class="mid-temp" style="color:#457B9D;">{rate_low_century:+.2f}°C</p>
+        <p class="card-sub">/ 100년 기준</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+with col_range:
+    range_color = "#2A9D8F" if rate_range_century < 0 else "#F4A261"
+    st.markdown(f"""
+    <div class="metric-card">
+        <p class="card-label">↔️ 일교차 (최고-최저)</p>
+        <p class="mid-temp" style="color:{range_color};">{rate_range_century:+.2f}°C</p>
+        <p class="card-sub">/ 100년 기준</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+st.markdown("<br>", unsafe_allow_html=True)
+if rate_range_century < 0:
+    st.info(f"ℹ️ 일교차가 100년당 **{abs(rate_range_century):.2f}°C** 줄어드는 추세입니다. 최저기온이 최고기온보다 더 빠르게 오르고 있을 수 있습니다.")
+else:
+    st.info(f"ℹ️ 일교차가 100년당 **{rate_range_century:.2f}°C** 늘어나는 추세입니다. 최고기온이 최저기온보다 더 빠르게 오르고 있을 수 있습니다.")
+
+# 최고/최저/일교차 그래프
+fig_hl = go.Figure()
+
+fig_hl.add_trace(go.Scatter(
+    x=data["연도"], y=data["연평균최고기온"],
+    mode="lines+markers", name="연평균 최고기온",
+    line=dict(color="#E63946", width=2), marker=dict(size=5)
+))
+fig_hl.add_trace(go.Scatter(
+    x=data["연도"], y=data["연평균기온"],
+    mode="lines+markers", name="연평균 기온",
+    line=dict(color="#8d99ae", width=2, dash="dot"), marker=dict(size=5)
+))
+fig_hl.add_trace(go.Scatter(
+    x=data["연도"], y=data["연평균최저기온"],
+    mode="lines+markers", name="연평균 최저기온",
+    line=dict(color="#457B9D", width=2), marker=dict(size=5)
+))
+
+fig_hl.update_layout(
+    xaxis_title="연도",
+    yaxis_title="기온 (°C)",
+    hovermode="x unified",
+    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+    template="plotly_white",
+    plot_bgcolor='rgba(0,0,0,0)',
+    paper_bgcolor='rgba(0,0,0,0)',
+    font=dict(family="Arial, sans-serif", size=13, color="#2b2d42"),
+    margin=dict(l=10, r=10, t=60, b=10),
+    height=450
+)
+fig_hl.update_xaxes(showgrid=True, gridcolor='#eeeeee')
+fig_hl.update_yaxes(showgrid=True, gridcolor='#eeeeee')
+
+st.plotly_chart(fig_hl, use_container_width=True)
+
+st.markdown("<hr>", unsafe_allow_html=True)
+
+# =========================================================
+# 섹션 3: 그래프 분석 (+ 무지개 테마 버튼)
 # =========================================================
 header_col, button_col = st.columns([4, 1])
 with header_col:
     st.markdown('<p class="section-title">📈 연평균 기온 산점도 및 회귀 직선 비교</p>', unsafe_allow_html=True)
 with button_col:
-    st.write("")  # 세로 위치 맞춤용 여백
+    st.write("")
     if "rainbow_mode" not in st.session_state:
         st.session_state.rainbow_mode = False
     if st.button("🌈 무지개 테마 ON/OFF", use_container_width=True):
@@ -203,7 +310,6 @@ line_y_recent = slope_recent * line_x_recent + intercept_recent
 fig = go.Figure()
 
 if rainbow_mode:
-    # 무지개 테마: 연도에 따라 색이 변하는 컬러스케일 마커
     fig.add_trace(go.Scatter(
         x=data["연도"], y=data["연평균기온"],
         mode="markers", name="연평균 기온 (관측치)",
@@ -244,10 +350,7 @@ fig.update_layout(
     xaxis_title="연도",
     yaxis_title="평균기온 (°C)",
     hovermode="x unified",
-    legend=dict(
-        orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1,
-        bgcolor='rgba(255,255,255,0)'
-    ),
+    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, bgcolor='rgba(255,255,255,0)'),
     template="plotly_white",
     plot_bgcolor='rgba(0,0,0,0)',
     paper_bgcolor='rgba(0,0,0,0)',
@@ -263,7 +366,7 @@ st.plotly_chart(fig, use_container_width=True)
 st.markdown("<hr>", unsafe_allow_html=True)
 
 # =========================================================
-# 섹션 3: 상세 통계 정보 (전체 vs 최근 20년)
+# 섹션 4: 상세 통계 정보 (전체 vs 최근 20년)
 # =========================================================
 st.markdown('<p class="section-title">📊 회귀 분석 상세 정보</p>', unsafe_allow_html=True)
 
@@ -293,7 +396,7 @@ with info_col2:
 st.markdown("<hr>", unsafe_allow_html=True)
 
 # =========================================================
-# 섹션 4: 미래 예측
+# 섹션 5: 미래 예측 (+ 실제 관측치 비교 기능 추가)
 # =========================================================
 st.markdown('<p class="section-title">🔮 연도별 예상 기온 확인하기</p>', unsafe_allow_html=True)
 
@@ -326,5 +429,52 @@ with pred_col2:
         <p style="font-size:14px; opacity:0.85;">{selected_year}년 예상 평균기온 · 연간 {slope_recent:+.3f}°C 변화 반영</p>
     </div>
     """, unsafe_allow_html=True)
+
+# --- 실제 관측치와 비교 ---
+st.markdown("<br>", unsafe_allow_html=True)
+
+actual_row = data[data["연도"] == selected_year]
+
+if not actual_row.empty:
+    actual_temp = actual_row["연평균기온"].values[0]
+    error_all = pred_temp_all - actual_temp
+    error_recent = pred_temp_recent - actual_temp
+
+    st.markdown(f"""
+    <div class="info-box">
+        <p class="card-label">📌 {selected_year}년 실제 관측된 연평균기온</p>
+        <p class="mid-temp" style="color:#2b2d42;">{actual_temp:.2f}°C</p>
+        <p class="card-sub">
+            전체 기간 모델 오차: <b>{error_all:+.2f}°C</b> &nbsp;|&nbsp; 
+            최근 20년 모델 오차: <b>{error_recent:+.2f}°C</b>
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+else:
+    st.markdown(f"""
+    <div class="info-box">
+        <p class="card-label">📌 {selected_year}년은(는) 실제 관측 데이터 범위({start_year_all}~{end_year_all}년) 밖입니다.</p>
+        <p class="card-sub">위에 표시된 값은 회귀직선을 이용한 <b>예측치</b>입니다.</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+st.markdown("<hr>", unsafe_allow_html=True)
+
+# =========================================================
+# 섹션 6: 데이터 다운로드
+# =========================================================
+st.markdown('<p class="section-title">💾 전처리된 데이터 다운로드</p>', unsafe_allow_html=True)
+st.write("분석에 사용된 연도별 평균·최고·최저기온 및 일교차 데이터를 CSV 파일로 내려받아 직접 검산해볼 수 있습니다.")
+
+download_df = data[["연도", "관측일수", "연평균기온", "연평균최고기온", "연평균최저기온", "일교차"]].copy()
+csv_data = download_df.to_csv(index=False, encoding="utf-8-sig")
+
+st.download_button(
+    label="📥 연도별 기온 데이터 CSV 다운로드",
+    data=csv_data,
+    file_name="seoul_yearly_temperature.csv",
+    mime="text/csv",
+    use_container_width=True
+)
 
 st.markdown("<br><br>", unsafe_allow_html=True)
