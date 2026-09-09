@@ -13,12 +13,9 @@ st.set_page_config(
 # 2. 커스텀 CSS 스타일 적용
 st.markdown("""
     <style>
-    /* 전체 배경 */
     .stApp {
         background-color: #F7F9FC;
     }
-    
-    /* 메인 타이틀 */
     .main-title {
         font-size: 46px;
         font-weight: 800;
@@ -33,10 +30,8 @@ st.markdown("""
         text-align: center;
         color: #6c757d;
         font-size: 17px;
-        margin-bottom: 40px;
+        margin-bottom: 30px;
     }
-    
-    /* 섹션 제목 */
     .section-title {
         font-size: 24px;
         font-weight: 700;
@@ -46,8 +41,6 @@ st.markdown("""
         margin-top: 40px;
         margin-bottom: 20px;
     }
-
-    /* 카드 스타일 */
     .metric-card {
         background: white;
         border-radius: 20px;
@@ -60,7 +53,6 @@ st.markdown("""
     .metric-card:hover {
         transform: translateY(-5px);
     }
-    
     .card-label {
         font-size: 15px;
         color: #8d99ae;
@@ -76,8 +68,6 @@ st.markdown("""
         font-size: 13px;
         color: #adb5bd;
     }
-
-    /* 예측 결과 강조 박스 */
     .prediction-box {
         background: linear-gradient(135deg, #FF512F 0%, #F09819 100%);
         border-radius: 20px;
@@ -90,7 +80,6 @@ st.markdown("""
         color: white;
         font-size: 65px;
     }
-    
     hr {
         margin-top: 30px;
         margin-bottom: 30px;
@@ -188,9 +177,22 @@ else:
 st.markdown("<hr>", unsafe_allow_html=True)
 
 # =========================================================
-# 섹션 2: 그래프 분석
+# 섹션 2: 그래프 분석 (+ 무지개 테마 버튼)
 # =========================================================
-st.markdown('<p class="section-title">📈 연평균 기온 산점도 및 회귀 직선 비교</p>', unsafe_allow_html=True)
+header_col, button_col = st.columns([4, 1])
+with header_col:
+    st.markdown('<p class="section-title">📈 연평균 기온 산점도 및 회귀 직선 비교</p>', unsafe_allow_html=True)
+with button_col:
+    st.write("")  # 세로 위치 맞춤용 여백
+    if "rainbow_mode" not in st.session_state:
+        st.session_state.rainbow_mode = False
+    if st.button("🌈 무지개 테마 ON/OFF", use_container_width=True):
+        st.session_state.rainbow_mode = not st.session_state.rainbow_mode
+
+rainbow_mode = st.session_state.rainbow_mode
+
+if rainbow_mode:
+    st.caption("🌈 무지개 모드: 점 색깔이 연도 순서를 나타냅니다. **보라색(과거) → 빨간색(최근)** 순서로 변합니다!")
 
 line_x_all = np.linspace(start_year_all, end_year_all, 100)
 line_y_all = slope_all * line_x_all + intercept_all
@@ -200,22 +202,42 @@ line_y_recent = slope_recent * line_x_recent + intercept_recent
 
 fig = go.Figure()
 
-fig.add_trace(go.Scatter(
-    x=data["연도"], y=data["연평균기온"],
-    mode="markers", name="연평균 기온 (관측치)",
-    marker=dict(color="#457B9D", size=9, opacity=0.55, line=dict(width=1, color='white'))
-))
+if rainbow_mode:
+    # 무지개 테마: 연도에 따라 색이 변하는 컬러스케일 마커
+    fig.add_trace(go.Scatter(
+        x=data["연도"], y=data["연평균기온"],
+        mode="markers", name="연평균 기온 (관측치)",
+        marker=dict(
+            size=11,
+            color=data["연도"],
+            colorscale="Rainbow",
+            showscale=True,
+            colorbar=dict(title="연도"),
+            line=dict(width=1, color='white'),
+            opacity=0.85
+        )
+    ))
+    line_color_all = "#00C2D1"
+    line_color_recent = "#FF00E4"
+else:
+    fig.add_trace(go.Scatter(
+        x=data["연도"], y=data["연평균기온"],
+        mode="markers", name="연평균 기온 (관측치)",
+        marker=dict(color="#457B9D", size=9, opacity=0.55, line=dict(width=1, color='white'))
+    ))
+    line_color_all = "#E63946"
+    line_color_recent = "#F4A261"
 
 fig.add_trace(go.Scatter(
     x=line_x_all, y=line_y_all,
     mode="lines", name=f"전체 회귀선 ({rate_per_century_all:+.2f}°C/100년)",
-    line=dict(color="#E63946", width=3)
+    line=dict(color=line_color_all, width=3)
 ))
 
 fig.add_trace(go.Scatter(
     x=line_x_recent, y=line_y_recent,
     mode="lines", name=f"최근 20년 회귀선 ({rate_per_century_recent:+.2f}°C/100년)",
-    line=dict(color="#F4A261", width=4, dash="dash")
+    line=dict(color=line_color_recent, width=4, dash="dash")
 ))
 
 fig.update_layout(
