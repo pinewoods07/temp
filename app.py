@@ -13,46 +13,89 @@ st.set_page_config(
 # 2. 커스텀 CSS 스타일 적용
 st.markdown("""
     <style>
+    /* 전체 배경 */
+    .stApp {
+        background-color: #F7F9FC;
+    }
+    
+    /* 메인 타이틀 */
     .main-title {
-        font-size: 42px;
+        font-size: 46px;
         font-weight: 800;
-        color: #FF4B4B;
+        background: -webkit-linear-gradient(45deg, #FF512F, #F09819);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
         text-align: center;
-        padding-bottom: 10px;
+        padding-top: 10px;
+        padding-bottom: 0px;
     }
     .sub-title {
         text-align: center;
-        color: #555555;
-        font-size: 18px;
-        margin-bottom: 30px;
+        color: #6c757d;
+        font-size: 17px;
+        margin-bottom: 40px;
     }
+    
+    /* 섹션 제목 */
+    .section-title {
+        font-size: 24px;
+        font-weight: 700;
+        color: #2b2d42;
+        border-left: 6px solid #FF512F;
+        padding-left: 12px;
+        margin-top: 40px;
+        margin-bottom: 20px;
+    }
+
+    /* 카드 스타일 */
     .metric-card {
-        background-color: #FFFFFF;
-        border: 1px solid #EAEAEA;
-        border-radius: 15px;
-        padding: 20px;
-        box-shadow: 2px 2px 10px rgba(0,0,0,0.05);
+        background: white;
+        border-radius: 20px;
+        padding: 25px 20px;
+        box-shadow: 0px 8px 20px rgba(0, 0, 0, 0.06);
         text-align: center;
+        transition: transform 0.2s;
+        border: 1px solid #f0f0f0;
+    }
+    .metric-card:hover {
+        transform: translateY(-5px);
+    }
+    
+    .card-label {
+        font-size: 15px;
+        color: #8d99ae;
+        font-weight: 600;
+        margin-bottom: 5px;
     }
     .big-temp {
-        font-size: 60px;
+        font-size: 52px;
         font-weight: 900;
-        color: #E63946;
+        margin: 5px 0;
     }
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 24px;
+    .card-sub {
+        font-size: 13px;
+        color: #adb5bd;
     }
-    .stTabs [data-baseweb="tab"] {
-        height: 50px;
-        white-space: pre-wrap;
-        background-color: #F8F9FA;
-        border-radius: 10px 10px 0px 0px;
-        padding: 10px 20px;
-        font-weight: 600;
-    }
-    .stTabs [aria-selected="true"] {
-        background-color: #FF4B4B;
+
+    /* 예측 결과 강조 박스 */
+    .prediction-box {
+        background: linear-gradient(135deg, #FF512F 0%, #F09819 100%);
+        border-radius: 20px;
+        padding: 30px;
+        text-align: center;
         color: white;
+        box-shadow: 0px 10px 25px rgba(255, 81, 47, 0.3);
+    }
+    .prediction-box .big-temp {
+        color: white;
+        font-size: 65px;
+    }
+    
+    hr {
+        margin-top: 30px;
+        margin-bottom: 30px;
+        border: none;
+        border-top: 1px solid #e9ecef;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -107,116 +150,159 @@ end_year_recent = int(X_recent.max())
 num_years_recent = len(X_recent)
 rate_per_century_recent = slope_recent * 100
 
-# 7. 탭 구성
-tab1, tab2, tab3 = st.tabs(["🔥 추세 비교", "📈 그래프 분석", "🔮 미래 예측"])
+difference = rate_per_century_recent - rate_per_century_all
 
-# --- TAB 1: 추세 비교 ---
-with tab1:
-    st.subheader("100년당 기온 상승 폭 비교")
-    st.caption("기울기(1년당 변화량)에 100을 곱하여, 해당 기간의 추세가 지속될 경우 100년간 오르는 기온을 비교합니다.")
-    
-    col_rate1, col_rate2 = st.columns(2)
+# =========================================================
+# 섹션 1: 100년당 기온 상승 폭 비교
+# =========================================================
+st.markdown('<p class="section-title">🔥 100년당 기온 상승 폭 비교</p>', unsafe_allow_html=True)
+st.caption("기울기(1년당 변화량)에 100을 곱하여, 해당 기간의 추세가 지속될 경우 100년간 오르는 기온을 비교합니다.")
 
-    with col_rate1:
-        st.markdown(f"""
-        <div class="metric-card">
-            <p style="font-size:16px; color:gray;">🌐 전체 기간 ({start_year_all}~{end_year_all}년, {num_years_all}개 해)</p>
-            <p class="big-temp">{rate_per_century_all:+.2f} °C</p>
-            <p style="color:gray;">/ 100년 기준 · 상관계수(r): {corr_all:.3f}</p>
-        </div>
-        """, unsafe_allow_html=True)
+col_rate1, col_rate2 = st.columns(2)
 
-    with col_rate2:
-        difference = rate_per_century_recent - rate_per_century_all
-        color = "#E63946" if difference > 0 else "#457B9D"
-        st.markdown(f"""
-        <div class="metric-card">
-            <p style="font-size:16px; color:gray;">⚡ 최근 20년 ({start_year_recent}~{end_year_recent}년, {num_years_recent}개 해)</p>
-            <p class="big-temp" style="color:{color};">{rate_per_century_recent:+.2f} °C</p>
-            <p style="color:gray;">/ 100년 기준 · 상관계수(r): {corr_recent:.3f}</p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    st.markdown("<br>", unsafe_allow_html=True)
-    if difference > 0:
-        st.warning(f"⚠️ 최근 20년의 기온 상승 속도가 전체 기간 평균보다 **{difference:.2f}°C** 더 빠릅니다. 온난화가 가속화되고 있을 가능성이 있습니다.")
-    else:
-        st.info(f"ℹ️ 최근 20년의 기온 상승 속도가 전체 기간 평균보다 **{abs(difference):.2f}°C** 더 완만합니다.")
+with col_rate1:
+    st.markdown(f"""
+    <div class="metric-card">
+        <p class="card-label">🌐 전체 기간 ({start_year_all}~{end_year_all}년)</p>
+        <p class="big-temp" style="color:#457B9D;">{rate_per_century_all:+.2f}°C</p>
+        <p class="card-sub">분석 연도 수: {num_years_all}개 해 · 상관계수(r): {corr_all:.3f}</p>
+    </div>
+    """, unsafe_allow_html=True)
 
-# --- TAB 2: 그래프 분석 ---
-with tab2:
-    st.subheader("연평균 기온 산점도 및 회귀 직선 비교")
-    
-    line_x_all = np.linspace(start_year_all, end_year_all, 100)
-    line_y_all = slope_all * line_x_all + intercept_all
+with col_rate2:
+    color = "#E63946" if difference > 0 else "#2A9D8F"
+    st.markdown(f"""
+    <div class="metric-card">
+        <p class="card-label">⚡ 최근 20년 ({start_year_recent}~{end_year_recent}년)</p>
+        <p class="big-temp" style="color:{color};">{rate_per_century_recent:+.2f}°C</p>
+        <p class="card-sub">분석 연도 수: {num_years_recent}개 해 · 상관계수(r): {corr_recent:.3f}</p>
+    </div>
+    """, unsafe_allow_html=True)
 
-    line_x_recent = np.linspace(start_year_recent, end_year_recent, 100)
-    line_y_recent = slope_recent * line_x_recent + intercept_recent
+st.markdown("<br>", unsafe_allow_html=True)
+if difference > 0:
+    st.warning(f"⚠️ 최근 20년의 기온 상승 속도가 전체 기간 평균보다 **{difference:.2f}°C** 더 빠릅니다. 온난화가 가속화되고 있을 가능성이 있습니다.")
+else:
+    st.info(f"ℹ️ 최근 20년의 기온 상승 속도가 전체 기간 평균보다 **{abs(difference):.2f}°C** 더 완만합니다.")
 
-    fig = go.Figure()
+st.markdown("<hr>", unsafe_allow_html=True)
 
-    fig.add_trace(go.Scatter(
-        x=data["연도"], y=data["연평균기온"],
-        mode="markers", name="연평균 기온 (관측치)",
-        marker=dict(color="#457B9D", size=8, opacity=0.6, line=dict(width=1, color='white'))
-    ))
+# =========================================================
+# 섹션 2: 그래프 분석
+# =========================================================
+st.markdown('<p class="section-title">📈 연평균 기온 산점도 및 회귀 직선 비교</p>', unsafe_allow_html=True)
 
-    fig.add_trace(go.Scatter(
-        x=line_x_all, y=line_y_all,
-        mode="lines", name=f"전체 회귀선 ({rate_per_century_all:+.2f}°C/100년)",
-        line=dict(color="#E63946", width=3)
-    ))
+line_x_all = np.linspace(start_year_all, end_year_all, 100)
+line_y_all = slope_all * line_x_all + intercept_all
 
-    fig.add_trace(go.Scatter(
-        x=line_x_recent, y=line_y_recent,
-        mode="lines", name=f"최근 20년 회귀선 ({rate_per_century_recent:+.2f}°C/100년)",
-        line=dict(color="#F4A261", width=4, dash="dash")
-    ))
+line_x_recent = np.linspace(start_year_recent, end_year_recent, 100)
+line_y_recent = slope_recent * line_x_recent + intercept_recent
 
-    fig.update_layout(
-        xaxis_title="연도",
-        yaxis_title="평균기온 (°C)",
-        hovermode="x unified",
-        legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01, bgcolor='rgba(255,255,255,0.8)'),
-        template="plotly_white",
-        plot_bgcolor='rgba(0,0,0,0)',
-        font=dict(family="Arial, sans-serif", size=13),
-        margin=dict(l=20, r=20, t=30, b=20)
-    )
+fig = go.Figure()
 
-    st.plotly_chart(fig, use_container_width=True)
+fig.add_trace(go.Scatter(
+    x=data["연도"], y=data["연평균기온"],
+    mode="markers", name="연평균 기온 (관측치)",
+    marker=dict(color="#457B9D", size=9, opacity=0.55, line=dict(width=1, color='white'))
+))
 
-# --- TAB 3: 미래 예측 ---
-with tab3:
-    st.subheader("연도를 선택해 예상 기온을 확인하세요")
+fig.add_trace(go.Scatter(
+    x=line_x_all, y=line_y_all,
+    mode="lines", name=f"전체 회귀선 ({rate_per_century_all:+.2f}°C/100년)",
+    line=dict(color="#E63946", width=3)
+))
 
-    selected_year = st.slider(
-        "예측할 연도 (1900년 ~ 2100년)", 
-        min_value=1900, max_value=2100, value=2026, step=1
-    )
+fig.add_trace(go.Scatter(
+    x=line_x_recent, y=line_y_recent,
+    mode="lines", name=f"최근 20년 회귀선 ({rate_per_century_recent:+.2f}°C/100년)",
+    line=dict(color="#F4A261", width=4, dash="dash")
+))
 
-    pred_temp_all = slope_all * selected_year + intercept_all
-    pred_temp_recent = slope_recent * selected_year + intercept_recent
+fig.update_layout(
+    xaxis_title="연도",
+    yaxis_title="평균기온 (°C)",
+    hovermode="x unified",
+    legend=dict(
+        orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1,
+        bgcolor='rgba(255,255,255,0)'
+    ),
+    template="plotly_white",
+    plot_bgcolor='rgba(0,0,0,0)',
+    paper_bgcolor='rgba(0,0,0,0)',
+    font=dict(family="Arial, sans-serif", size=13, color="#2b2d42"),
+    margin=dict(l=10, r=10, t=60, b=10),
+    height=500
+)
+fig.update_xaxes(showgrid=True, gridcolor='#eeeeee')
+fig.update_yaxes(showgrid=True, gridcolor='#eeeeee')
 
-    st.markdown(f"<h3 style='text-align:center;'>🗓️ {selected_year}년 서울의 예상 평균기온</h3>", unsafe_allow_html=True)
-    st.markdown("<br>", unsafe_allow_html=True)
+st.plotly_chart(fig, use_container_width=True)
 
-    pred_col1, pred_col2 = st.columns(2)
+st.markdown("<hr>", unsafe_allow_html=True)
 
-    with pred_col1:
-        st.markdown(f"""
-        <div class="metric-card">
-            <p style="font-size:16px; color:gray;">전체 기간 추세 기준</p>
-            <p class="big-temp">{pred_temp_all:.2f} °C</p>
-            <p style="color:gray;">연간 {slope_all:+.3f}°C 변화 반영</p>
-        </div>
-        """, unsafe_allow_html=True)
+# =========================================================
+# 섹션 3: 상세 통계 정보 (전체 vs 최근 20년)
+# =========================================================
+st.markdown('<p class="section-title">📊 회귀 분석 상세 정보</p>', unsafe_allow_html=True)
 
-    with pred_col2:
-        st.markdown(f"""
-        <div class="metric-card">
-            <p style="font-size:16px; color:gray;">최근 20년 추세 기준</p>
-            <p class="big-temp" style="color:#F4A261;">{pred_temp_recent:.2f} °C</p>
-            <p style="color:gray;">연간 {slope_recent:+.3f}°C 변화 반영</p>
-        </div>
-        """, unsafe_allow_html=True)
+info_col1, info_col2 = st.columns(2)
+with info_col1:
+    st.markdown(f"""
+    <div class="metric-card" style="text-align:left;">
+        <p class="card-label" style="text-align:center;">🌐 전체 기간 모델</p>
+        <p>📅 분석 기간: <b>{start_year_all}년 ~ {end_year_all}년</b></p>
+        <p>🔢 분석 연도 수: <b>{num_years_all}개</b></p>
+        <p>📐 연간 기온 변화율: <b>{slope_all:+.4f} °C/년</b></p>
+        <p>🔗 상관계수(r): <b>{corr_all:.3f}</b></p>
+    </div>
+    """, unsafe_allow_html=True)
+
+with info_col2:
+    st.markdown(f"""
+    <div class="metric-card" style="text-align:left;">
+        <p class="card-label" style="text-align:center;">⚡ 최근 20년 모델</p>
+        <p>📅 분석 기간: <b>{start_year_recent}년 ~ {end_year_recent}년</b></p>
+        <p>🔢 분석 연도 수: <b>{num_years_recent}개</b></p>
+        <p>📐 연간 기온 변화율: <b>{slope_recent:+.4f} °C/년</b></p>
+        <p>🔗 상관계수(r): <b>{corr_recent:.3f}</b></p>
+    </div>
+    """, unsafe_allow_html=True)
+
+st.markdown("<hr>", unsafe_allow_html=True)
+
+# =========================================================
+# 섹션 4: 미래 예측
+# =========================================================
+st.markdown('<p class="section-title">🔮 연도별 예상 기온 확인하기</p>', unsafe_allow_html=True)
+
+selected_year = st.slider(
+    "예측할 연도를 선택하세요 (1900년 ~ 2100년)", 
+    min_value=1900, max_value=2100, value=2026, step=1
+)
+
+pred_temp_all = slope_all * selected_year + intercept_all
+pred_temp_recent = slope_recent * selected_year + intercept_recent
+
+st.markdown("<br>", unsafe_allow_html=True)
+
+pred_col1, pred_col2 = st.columns(2)
+
+with pred_col1:
+    st.markdown(f"""
+    <div class="prediction-box">
+        <p style="font-size:18px; opacity:0.9;">🌐 전체 기간 추세 기준</p>
+        <p class="big-temp">{pred_temp_all:.2f}°C</p>
+        <p style="font-size:14px; opacity:0.85;">{selected_year}년 예상 평균기온 · 연간 {slope_all:+.3f}°C 변화 반영</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+with pred_col2:
+    st.markdown(f"""
+    <div class="prediction-box" style="background: linear-gradient(135deg, #F4A261 0%, #E9C46A 100%); box-shadow: 0px 10px 25px rgba(244, 162, 97, 0.4);">
+        <p style="font-size:18px; opacity:0.9;">⚡ 최근 20년 추세 기준</p>
+        <p class="big-temp">{pred_temp_recent:.2f}°C</p>
+        <p style="font-size:14px; opacity:0.85;">{selected_year}년 예상 평균기온 · 연간 {slope_recent:+.3f}°C 변화 반영</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+st.markdown("<br><br>", unsafe_allow_html=True)
